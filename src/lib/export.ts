@@ -1,91 +1,45 @@
-import * as XLSX from 'xlsx';
-import type { BuildingWithNested } from './supabase';
+import ExcelJS from 'exceljs';
+import type { BuildingWithNested, Camera } from './supabase';
+import { CATEGORY_KEYS, CATEGORY_META, getProgress, stagesFor, type StageField } from './tracking';
 
-function calcRow(total: number, completed: number) {
-  const pending = total - completed;
-  const pct = total === 0 ? 0 : Math.round((completed / total) * 1000) / 10;
-  return { total, completed, pending, pct };
+const statusFill: Record<string, string> = { pending: '3F2F08', in_progress: '063A4A', complete: '073A2A' };
+const statusFont: Record<string, string> = { pending: 'FBBF24', in_progress: '22D3EE', complete: '34D399' };
+const dateName = () => new Date().toISOString().slice(0, 10);
+
+export async function exportToXlsx(buildings: BuildingWithNested[]) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'ELV Project Sysense';
+  const all = buildings.flatMap((building) => building.floors.flatMap((floor) => floor.cameras));
+  const summaryRows: (string | number)[][] = [['Building', 'Floor', 'Category', 'Total Items', 'Complete', 'In Progress', 'Pending', 'Completion %']];
+  for (const building of buildings) for (const floor of building.floors) for (const category of CATEGORY_KEYS) {
+    const items = floor.cameras.filter((item) => item.category === category);
+    if (!items.length) continue;
+    const progress = getProgress(items);
+    summaryRows.push([building.name, floor.name, CATEGORY_META[category].label, progress.totalItems, progress.completedItems, progress.inProgressItems, progress.pendingItems, `${progress.completion}%`]);
+  }
+  const overall = getProgress(all);
+  summaryRows.push(['OVERALL', '', '', overall.totalItems, overall.completedItems, overall.inProgressItems, overall.pendingItems, `${overall.completion}%`]);
+  addSheet(workbook, 'Summary', summaryRows, ['Building', 'Floor', 'Category', 'Total Items', 'Complete', 'In Progress', 'Pending', 'Completion %']);
+
+  for (const category of CATEGORY_KEYS) {
+    const stageLabels = stagesFor(category).map((stage) => stage.label);
+    const rows: (string | number)[][] = [['Building', 'Floor', 'Name', ...stageLabels, 'Remark']];
+    for (const building of buildings) for (const floor of building.floors) for (const item of floor.cameras) if (item.category === category) {
+      rows.push([building.name, floor.name, item.name, ...stagesFor(category).map((stage) => stageValue(item, stage.field)), item.notes ?? '']);
+    }
+    addSheet(workbook, CATEGORY_META[category].label, rows, rows[0].map(String), true);
+  }
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a'); anchor.href = url; anchor.download = `ELV_Project_Sysense_${dateName()}.xlsx`; anchor.click(); URL.revokeObjectURL(url);
 }
 
-export function exportToXlsx(buildings: BuildingWithNested[]) {
-  const wb = XLSX.utils.book_new();
-
-  // Sheet 1: Cable Tracking
-  let totalPoints = 0;
-  let totalCompleted = 0;
-  const rows: (string | number)[][] = [];
-  rows.push(['Floor', 'Total Points', 'Completed', 'Pending', 'Completion %']);
-  for (const b of buildings) {
-    for (const f of b.floors) {
-      const c = calcRow(f.cameras.length, f.cameras.filter((x) => x.status === 'complete').length);
-      rows.push([`${b.name} — ${f.name}`, c.total, c.completed, c.pending, `${c.pct}%`]);
-      totalPoints += c.total;
-      totalCompleted += c.completed;
-    }
-  }
-  const site = calcRow(totalPoints, totalCompleted);
-  rows.push(['TOTAL SITE', site.total, site.completed, site.pending, `${site.pct}%`]);
-  const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Cable Tracking');
-
-  // Sheet 2: Point Lists
-  const completed: string[] = [];
-  const pending: string[] = [];
-  for (const b of buildings) {
-    for (const f of b.floors) {
-      for (const c of f.cameras) {
-        if (c.status === 'complete') completed.push(c.name);
-        else pending.push(c.name);
-      }
-    }
-  }
-  const maxLen = Math.max(completed.length, pending.length, 1);
-  const plRows: (string)[][] = [['COMPLETED CAMERA POINTS', 'PENDING CAMERA POINTS']];
-  for (let i = 0; i < maxLen; i++) {
-    plRows.push([completed[i] ?? '', pending[i] ?? '']);
-  }
-  const ws2 = XLSX.utils.aoa_to_sheet(plRows);
-  ws2['!cols'] = [{ wch: 40 }, { wch: 40 }];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Point Lists');
-
-  // Sheet 3: Instructions
-  const instr: string[][] = [
-    ['Camera Cable Pulling Tracker — Instructions'],
-    [''],
-    ['1. Use the dashboard at the top of the app to see site-wide totals and overall completion.'],
-    ['2. The Floor-wise table lists every camera by building and floor. Use the search bar to find a specific camera, the All/Pending/Complete filter to narrow the list, and the dropdown on each row to change its status.'],
-    ['3. Manage buildings, floors, and cameras using the Add/Edit/Delete buttons.'],
-    ['4. Attach a floor drawing to any floor, then drop camera pins on the Floor Plan view to mark where each camera sits on the drawing.'],
-    ['5. Click "Export Data" to download this workbook.'],
-    [''],
-    ['Sheet Guide:'],
-    ['  - Cable Tracking: floor-by-floor summary with a total site row at the bottom.'],
-    ['  - Point Lists: every completed and pending camera point, one per cell.'],
-    ['  - Instructions: this sheet.'],
-  ];
-  const ws3 = XLSX.utils.aoa_to_sheet(instr);
-  ws3['!cols'] = [{ wch: 110 }];
-  XLSX.utils.book_append_sheet(wb, ws3, 'Instructions');
-
-  XLSX.writeFile(wb, 'camera-cable-tracking.xlsx');
-}
-
-// recompute totals helper used by the UI
-export function computeSiteTotals(buildings: BuildingWithNested[]) {
-  let total = 0;
-  let completed = 0;
-  for (const b of buildings) {
-    for (const f of b.floors) {
-      total += f.cameras.length;
-      completed += f.cameras.filter((c) => c.status === 'complete').length;
-    }
-  }
-  return { total, completed, pending: total - completed, pct: total === 0 ? 0 : Math.round((completed / total) * 1000) / 10 };
-}
-
-export function computeFloorTotal(floor: { cameras: { status: string }[] }) {
-  const total = floor.cameras.length;
-  const completed = floor.cameras.filter((c) => c.status === 'complete').length;
-  return { total, completed, pending: total - completed, pct: total === 0 ? 0 : Math.round((completed / total) * 1000) / 10 };
+function stageValue(item: Camera, field: StageField) { return item[field]; }
+function addSheet(workbook: ExcelJS.Workbook, name: string, rows: (string | number)[][], headers: string[], colorStages = false) {
+  const sheet = workbook.addWorksheet(name); sheet.addRows(rows); sheet.views = [{ state: 'frozen', ySplit: 1 }]; sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + headers.length)}1` };
+  const header = sheet.getRow(1); header.font = { bold: true, color: { argb: 'FFFFFFFF' } }; header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0E7490' } }; header.alignment = { vertical: 'middle' };
+  if (name === 'Summary') sheet.getRow(sheet.rowCount).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  if (colorStages) for (let row = 2; row <= sheet.rowCount; row++) for (let col = 4; col <= headers.length - 1; col++) { const cell = sheet.getCell(row, col); const value = String(cell.value ?? ''); cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusFill[value] ?? '111827' } }; cell.font = { color: { argb: statusFont[value] ?? 'CBD5E1' } }; }
+  for (let col = 1; col <= headers.length; col++) { let width = headers[col - 1].length + 2; sheet.eachRow((row) => { width = Math.max(width, String(row.getCell(col).value ?? '').length + 2); }); sheet.getColumn(col).width = Math.min(width, 32); }
 }
