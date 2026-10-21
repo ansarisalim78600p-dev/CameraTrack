@@ -39,6 +39,12 @@ export function getItemStatus(item: Camera): ItemStatus {
   return 'in_progress';
 }
 
+export function itemMatchesFilter(item: Camera, filter: ItemStatus): boolean {
+  if (filter === 'complete') return getItemStatus(item) === 'complete';
+  const stages = stagesFor(item.category);
+  return stages.some(({ field }) => item[field] === filter);
+}
+
 export function getProgress(items: Camera[]) {
   let totalStages = 0;
   let completedStages = 0;
@@ -50,8 +56,8 @@ export function getProgress(items: Camera[]) {
   return {
     totalItems: items.length,
     completedItems: items.filter((item) => getItemStatus(item) === 'complete').length,
-    inProgressItems: items.filter((item) => getItemStatus(item) === 'in_progress').length,
-    pendingItems: items.filter((item) => getItemStatus(item) === 'pending').length,
+    inProgressItems: items.filter((item) => itemMatchesFilter(item, 'in_progress')).length,
+    pendingItems: items.filter((item) => itemMatchesFilter(item, 'pending')).length,
     totalStages,
     completedStages,
     completion: totalStages ? Math.round((completedStages / totalStages) * 1000) / 10 : 0,
