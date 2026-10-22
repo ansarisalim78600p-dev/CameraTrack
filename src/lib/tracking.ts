@@ -1,6 +1,6 @@
 import type { BuildingWithNested, Camera } from './supabase';
 
-export const CATEGORY_KEYS = ['camera', 'access_control', 'wifi', 'gate_barrier', 'speaker', 'data_sock', 'elv_room'] as const;
+export const CATEGORY_KEYS = ['camera', 'access_control', 'wifi', 'gate_barrier', 'speaker', 'data_sock', 'smatv', 'elv_room'] as const;
 export type CategoryKey = (typeof CATEGORY_KEYS)[number];
 export type StageValue = 'pending' | 'in_progress' | 'complete';
 export type ItemStatus = 'pending' | 'in_progress' | 'complete';
@@ -12,7 +12,8 @@ export const CATEGORY_META: Record<CategoryKey, { label: string; accent: string;
   wifi: { label: 'WiFi', accent: '#60A5FA', dot: 'bg-blue-400' },
   gate_barrier: { label: 'Gate Barrier', accent: '#FB923C', dot: 'bg-orange-400' },
   speaker: { label: 'Speaker', accent: '#F472B6', dot: 'bg-pink-400' },
-  data_sock: { label: 'Data Sock', accent: '#818CF8', dot: 'bg-indigo-400' },
+  data_sock: { label: 'Data Socket', accent: '#818CF8', dot: 'bg-indigo-400' },
+  smatv: { label: 'SMATV', accent: '#F59E0B', dot: 'bg-amber-400' },
   elv_room: { label: 'ELV Room', accent: '#34D399', dot: 'bg-emerald-400' },
 };
 
