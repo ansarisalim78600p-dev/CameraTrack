@@ -4,7 +4,7 @@ export const CATEGORY_KEYS = ['camera', 'access_control', 'wifi', 'gate_barrier'
 export type CategoryKey = (typeof CATEGORY_KEYS)[number];
 export type StageValue = 'pending' | 'in_progress' | 'complete';
 export type ItemStatus = 'pending' | 'in_progress' | 'complete';
-export type StageField = 'cable_pulling' | 'termination' | 'device_installation' | 'dressing';
+export type StageField = 'cable_pulling' | 'termination' | 'fluke_test' | 'device_installation' | 'dressing';
 
 export const CATEGORY_META: Record<CategoryKey, { label: string; accent: string; dot: string }> = {
   camera: { label: 'Camera', accent: '#22D3EE', dot: 'bg-cyan-400' },
@@ -19,6 +19,7 @@ export const CATEGORY_META: Record<CategoryKey, { label: string; accent: string;
 export const STANDARD_STAGES: { field: StageField; label: string }[] = [
   { field: 'cable_pulling', label: 'Cable Pulling' },
   { field: 'termination', label: 'Termination' },
+  { field: 'fluke_test', label: 'Fluke Test' },
   { field: 'device_installation', label: 'Device Installation' },
 ];
 

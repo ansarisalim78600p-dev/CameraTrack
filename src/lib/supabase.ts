@@ -19,6 +19,7 @@ export type Camera = {
   category: CategoryKey;
   cable_pulling: StageValue;
   termination: StageValue;
+  fluke_test: StageValue;
   device_installation: StageValue;
   dressing: StageValue;
   location_x: number | null;

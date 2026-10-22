@@ -8,7 +8,7 @@ const dateName = () => new Date().toISOString().slice(0, 10);
 
 export async function exportToXlsx(buildings: BuildingWithNested[]) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'ELV Project Sysense';
+  workbook.creator = 'ELV Project SysSense';
   const all = buildings.flatMap((building) => building.floors.flatMap((floor) => floor.cameras));
   const summaryRows: (string | number)[][] = [['Building', 'Floor', 'Category', 'Total Items', 'Complete', 'In Progress', 'Pending', 'Completion %']];
   for (const building of buildings) for (const floor of building.floors) for (const category of CATEGORY_KEYS) {
@@ -32,7 +32,7 @@ export async function exportToXlsx(buildings: BuildingWithNested[]) {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a'); anchor.href = url; anchor.download = `ELV_Project_Sysense_${dateName()}.xlsx`; anchor.click(); URL.revokeObjectURL(url);
+  const anchor = document.createElement('a'); anchor.href = url; anchor.download = `ELV_Project_SysSense_${dateName()}.xlsx`; anchor.click(); URL.revokeObjectURL(url);
 }
 
 function stageValue(item: Camera, field: StageField) { return item[field]; }
