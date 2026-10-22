@@ -25,7 +25,7 @@ export function useTrackingData() {
   const addFloor = (buildingId: string, name: string, position: number) => run(supabase.from('floors').insert({ building_id: buildingId, name, position }));
   const updateFloor = (id: string, patch: Partial<Pick<Floor, 'name' | 'position' | 'floor_plan_url'>>) => run(supabase.from('floors').update(patch).eq('id', id));
   const deleteFloor = (id: string) => run(supabase.from('floors').delete().eq('id', id));
-  const addItem = (floorId: string, category: CategoryKey, name: string) => run(supabase.from('cameras').insert({ floor_id: floorId, category, name, status: 'pending', cable_pulling: 'pending', termination: 'pending', fluke_test: 'pending', device_installation: 'pending', dressing: 'pending' }));
+  const addItem = (floorId: string, category: CategoryKey, name: string, notes?: string) => run(supabase.from('cameras').insert({ floor_id: floorId, category, name, notes: notes || null, status: 'pending', cable_pulling: 'pending', termination: 'pending', fluke_test: 'pending', device_installation: 'pending', dressing: 'pending' }));
   const updateItem = (id: string, patch: CameraPatch) => run(supabase.from('cameras').update(patch).eq('id', id));
   const setItemStage = (id: string, field: StageField, value: StageValue) => run(supabase.from('cameras').update({ [field]: value }).eq('id', id));
   const deleteItem = (id: string) => run(supabase.from('cameras').delete().eq('id', id));
